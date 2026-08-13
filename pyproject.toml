@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vision-plugin"
+version = "0.1.0"
+description = "Standard vision plugin: MediaPipe behavior detection + MiniCPM-V semantic analysis + A->B cascade pipeline"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "opencv-python",
+    "mediapipe>=0.10",
+    "transformers>=4.40",
+    "torch",
+    "Pillow",
+]
+
+[tool.setuptools]
+packages = ["vision_plugin"]
