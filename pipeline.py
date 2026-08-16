@@ -29,10 +29,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_SEM_COOLDOWN = 10.0
 # chaos/settle 记录冷却 — 同一事件被多次 feed 轮询会重复处理
 DEFAULT_CHAOS_COOLDOWN = 30.0
-# 跨模态锚定冷却 (秒) — 防打扰
+# 视觉对象↔记忆关联冷却 (秒) — 防打扰
 DEFAULT_ANCHOR_COOLDOWN = 1800.0
 
-# 锚定黑名单: 无信息量泛词不触发跨模态唤醒
+# 锚定黑名单: 无信息量泛词不触发视觉对象→记忆唤醒
 ANCHOR_STOP_WORDS = {"背景", "环境", "画面", "东西", "物体", "手", "桌子", "地面", "空气", "人"}
 
 
@@ -56,7 +56,7 @@ class VisionPipeline:
             storage: 记忆对象 (鸭子类型: remember(text, room, metadata)/recall 可选)
             sem_cooldown: 语义分析冷却 (秒)
             chaos_cooldown: 剧烈运动记录冷却 (秒)
-            anchor_cooldown: 跨模态锚定冷却 (秒)
+            anchor_cooldown: 视觉对象↔记忆关联冷却 (秒)
         """
         import numpy as np  # noqa: PLC0415
 
@@ -87,7 +87,7 @@ class VisionPipeline:
         triggered = False
         motion_lv = float(st.get("motion_level") or 0.0)
 
-        # ① 运动熵门控: 进入剧烈运动 → 降级记录 (不分析具体对象)
+        # ① 运动幅度门控: 进入剧烈运动 → 降级记录 (不分析具体对象)
         if (any(e["type"] == "motion_chaos" for e in events)
                 and (now - self._last_chaos_ts) >= self._chaos_cooldown):
             try:
@@ -176,7 +176,7 @@ class VisionPipeline:
         )
 
     def _anchor_retrieve(self, desc: str) -> None:
-        """跨模态锚定: 对象 → 检索历史 → 强关联命中 → 存锚定记忆 (供 proactive 主动开口)."""
+        """视觉对象↔记忆关联: 对象 → 检索历史 → 强关联命中 → 存锚定记忆 (供 proactive 主动开口)."""
         if self.storage is None or not hasattr(self.storage, "recall_with_scores"):
             return
         import re  # noqa: PLC0415
@@ -213,7 +213,7 @@ class VisionPipeline:
                 metadata={"source": "anchor", "anchor_obj": obj, "ts": ts},
                 dedupe=False,
             )
-            logger.info("[pipeline] 跨模态锚定: 「%s」↔「%.40s」(sim=%.2f)", obj, hit_text, sim)
+            logger.info("[pipeline] 视觉对象↔记忆关联: 「%s」↔「%.40s」(sim=%.2f)", obj, hit_text, sim)
         except Exception as exc:  # noqa: BLE001
             logger.debug("[pipeline] 锚定检索失败: %s", exc)
 

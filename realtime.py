@@ -37,7 +37,7 @@ _LOCK = threading.Lock()
 _detector = None
 _prev_faces = 0
 _prev_motion_avg = 0.0  # 08-09: 大幅动作触发 (A→B 级联: 运动跃升 → 唤醒语义层)
-_prev_activity = ""     # 08-09: 运动熵门控 — activity 状态跳变检测 (busy 进出)
+_prev_activity = ""     # 08-09: 运动幅度门控 — activity 状态跳变检测 (busy 进出)
 _motion_buf: list[float] = []
 _BGSUB_WARMUP = 6      # 08-09: bgsub 首帧瞬态保护 — 初始化后前 N 帧 motion 虚高, 不触发 motion_burst
 _warmup_count = 0
@@ -198,7 +198,7 @@ def process_frame(frame: np.ndarray) -> dict:
         _push_event("motion_burst", {"motion": round(motion, 3)})
         logger.info("[realtime] 大幅动作触发 (motion %.2f)", motion)
 
-    # 08-09 运动熵门控: busy(剧烈运动) 进入/退出 状态跳变事件
+    # 08-09 运动幅度门控: busy(剧烈运动) 进入/退出 状态跳变事件
     # - 进入 busy: 记录剧烈运动态 (语义层降级, 不跑全图分析)
     # - 退出 busy: 运动结束 → 回溯补偿 (语义层重分析静止画面, 绑定之前运动)
     if activity == "busy" and _prev_activity != "busy":

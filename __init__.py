@@ -4,7 +4,7 @@
 模块:
   realtime     MediaPipe 毫秒级行为/人脸检测 (motion_burst/chaos/settle 事件)
   semantic     MiniCPM-V 语义分析 (describe_image/describe_frame)
-  pipeline     VisionPipeline: A→B 级联管线 (行为触发语义 → 记忆回调 → 跨模态锚定)
+  pipeline     VisionPipeline: A→B 级联管线 (行为触发语义 → 记忆回调 → 视觉对象↔记忆关联)
 """
 from vision_plugin.pipeline import VisionPipeline
 from vision_plugin.realtime import snapshot, pop_events, process_frame, set_model_root
