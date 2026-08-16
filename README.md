@@ -14,11 +14,20 @@ Pipeline 级联   A 触发 B: 大幅动作 → 语义分析 → 记忆回调 →
 ## 安装
 
 ```bash
-pip install -e E:\abc\vision_plugin
+pip install -e <本插件路径>\vision_plugin
 pip install mediapipe numpy opencv-python transformers torch Pillow
 ```
 
 > 模型不捆绑在插件内——用 `model_dir` 参数引用现成 MiniCPM-V 目录（或先跑无模型降级模式）。
+
+## 跨环境使用（路径说明）
+
+- 示例路径（`E:\abc` 等）是**本机演示**；插件用 `Path(__file__).resolve()` 推导自身位置，不依赖固定盘符
+- **无模型时优雅降级**：MiniCPM 缺失 → 语义分析返回提示（不抛异常）；mediapipe 缺失 → 自动降级 cv2 背景差分（运动检测仍工作）；均无需改代码
+- 推荐显式配置模型目录（避免每次探测）：
+  - MCP 模式：设 `VISION_MODEL_DIR` / `VISION_MODEL_ROOT` 环境变量
+  - 库模式：`VisionPipeline(model_dir=..., model_root=...)`
+- 完整价值需配对记忆插件：`VisionPipeline(storage=memory_plugin_instance)` 才启用"视觉对象→记忆检索关联"；`storage=None` 时是纯检测工具（显式降级，不报错）
 
 ## MCP 接入（暴露为标准 MCP Server）
 
@@ -26,7 +35,7 @@ pip install mediapipe numpy opencv-python transformers torch Pillow
 
 ```jsonc
 // mcpServers 配置:
-{ "command": "E:/ai/venv/Scripts/python.exe",
+{ "command": "<你的python.exe绝对路径>",  # 例: E:/ai/venv/Scripts/python.exe
   "args": ["-m", "vision_plugin.mcp_server"] }
 ```
 
@@ -34,7 +43,7 @@ pip install mediapipe numpy opencv-python transformers torch Pillow
 `snapshot`（当前画面状态：人在场/运动强度）/ `get_events`（行为事件流：person_enter/motion_burst 等）
 
 **环境变量**：`VISION_MODEL_DIR`（MiniCPM-V 模型目录）、`VISION_MODEL_ROOT`（mediapipe 模型根目录）；
-**未配置时自动使用插件自带模型**（`E:\abc\models\minicpm-v46` 与 `E:\abc\models\mediapipe`，复制自兰项目，开箱即用）；模型不可用时工具返回明确提示
+**未配置时自动使用插件自带模型**；模型不可用时工具返回明确提示
 
 依赖：`pip install fastmcp mcp`
 
@@ -44,13 +53,15 @@ pip install mediapipe numpy opencv-python transformers torch Pillow
 import cv2
 from vision_plugin import VisionPipeline
 
-pipe = VisionPipeline(
-    model_root="E:/models",             # mediapipe .task 模型根 (含 models/mediapipe/)
-    model_dir="E:/models/minicpm-v46",  # MiniCPM-V 模型目录
-    storage=mem_plugin,                 # 记忆对象 (鸭子类型: remember/recall_with_scores), 可 None
-)
+# 方式1: 不传模型参数 → 自动探测插件自带 models/ 目录 (开箱即用, 跨机器无需改路径)
+pipe = VisionPipeline(storage=mem_plugin)
 
-# 摄像头循环: 逐帧喂入 → 检测 + A→B 级联 (行为触发语义 → 自动记忆)
+# 方式2: 自定义模型路径时显式指定 (例如放在其他目录)
+# pipe = VisionPipeline(model_root="<你的模型根目录>",  # 含 models/mediapipe/
+#                       model_dir="<你的minicpm目录>",  # 含 transformers/
+#                       storage=mem_plugin)
+
+# 摄像头循环: 逐帧喂入 → 检测 + 级联 (行为触发语义 → 自动记忆)
 cap = cv2.VideoCapture(0)
 while True:
     ok, frame = cap.read()

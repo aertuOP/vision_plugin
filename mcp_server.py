@@ -35,27 +35,6 @@ from fastmcp import FastMCP  # noqa: E402
 from vision_plugin import VisionPipeline  # noqa: E402
 from vision_plugin.semantic import describe_image  # noqa: E402
 
-# 08-16: 插件自带模型目录 (与插件包同级: E:\abc\models) — 复制自兰项目, 插件自包含
-_PLUGIN_MODELS = Path(__file__).resolve().parent.parent / "models"
-
-
-def _default_model_dir() -> str | None:
-    """默认 MiniCPM-V 模型目录: 优先插件自带 models/minicpm-v46."""
-    cand = _PLUGIN_MODELS / "minicpm-v46"
-    return str(cand) if cand.exists() else None
-
-
-def _default_model_root() -> str | None:
-    """默认 mediapipe 根目录: 插件自带 models/ (含 mediapipe/*.task).
-
-    注意 realtime._find_mp_model 找的是 <root>/models/mediapipe/xxx.task,
-    所以根目录必须传插件包同级目录 E:\\abc (而非 models 本身).
-    """
-    if (_PLUGIN_MODELS / "mediapipe").exists():
-        return str(_PLUGIN_MODELS.parent)  # E:\abc → E:\abc\models\mediapipe\*.task
-    return None
-
-
 # 全局单例 (MCP 服务器进程常驻, 一次初始化)
 _pipe: VisionPipeline | None = None
 
@@ -63,9 +42,12 @@ _pipe: VisionPipeline | None = None
 def _get_pipe() -> VisionPipeline:
     global _pipe
     if _pipe is None:
-        model_root = os.environ.get("VISION_MODEL_ROOT") or _default_model_root()
-        model_dir = os.environ.get("VISION_MODEL_DIR") or _default_model_dir()
-        _pipe = VisionPipeline(model_root=model_root, model_dir=model_dir, storage=None)
+        # 08-16 单一事实来源: 显式环境变量优先, 否则交给 VisionPipeline 自动探测插件自带模型
+        _pipe = VisionPipeline(
+            model_root=os.environ.get("VISION_MODEL_ROOT") or None,
+            model_dir=os.environ.get("VISION_MODEL_DIR") or None,
+            storage=None,
+        )
     return _pipe
 
 

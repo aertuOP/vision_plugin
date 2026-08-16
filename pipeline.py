@@ -11,9 +11,10 @@
 
 用法::
     from vision_plugin import VisionPipeline
-    pipe = VisionPipeline(model_root="E:/models",
-                          model_dir="E:/models/minicpm-v46",
-                          storage=mem)          # storage 只需鸭子类型: remember()/recall()
+    # 方式1: 不传模型参数 → 自动探测插件自带 models/ 目录 (开箱即用)
+    pipe = VisionPipeline(storage=mem)
+    # 方式2: 显式指定模型目录 (自定义路径时)
+    pipe = VisionPipeline(model_root="<根目录>", model_dir="<minicpm目录>", storage=mem)
     st = pipe.feed(frame)                       # 每帧喂入 → 检测 + 事件级联
     desc = pipe.analyze(frame, "描述这张图")     # 主动语义分析
 """
@@ -39,6 +40,9 @@ ANCHOR_STOP_WORDS = {"背景", "环境", "画面", "东西", "物体", "手", "�
 class VisionPipeline:
     """A→B 级联视觉管线. storage 可选 (None 时只检测不记忆/不锚定)."""
 
+    # 插件自带模型目录 (与插件包同级: <插件根>/models) — 08-16 支持开箱即用
+    _PLUGIN_MODELS = Path(__file__).resolve().parent.parent / "models"
+
     def __init__(
         self,
         model_root: str | Path | None = None,
@@ -51,8 +55,10 @@ class VisionPipeline:
         """初始化.
 
         Args:
-            model_root: mediapipe 模型根目录 (含 models/mediapipe/*.task)
-            model_dir: MiniCPM-V 模型目录 (含 transformers/ 或 GGUF)
+            model_root: mediapipe 模型根目录 (含 models/mediapipe/*.task).
+                        不传时自动探测插件自带 models/ 目录 (存在才启用; 无模型优雅降级 cv2)
+            model_dir: MiniCPM-V 模型目录 (含 transformers/ 或 GGUF).
+                       不传时自动探测插件自带 models/minicpm-v46 (存在才启用; 无模型语义返回 None)
             storage: 记忆对象 (鸭子类型: remember(text, room, metadata)/recall 可选)
             sem_cooldown: 语义分析冷却 (秒)
             chaos_cooldown: 剧烈运动记录冷却 (秒)
@@ -63,10 +69,15 @@ class VisionPipeline:
         self._np = np
         from . import realtime, semantic  # noqa: PLC0415
 
+        # 08-16 默认模型探测: 显式传入优先; 否则探测插件自带 models/ (开箱即用, 跨机器无需改路径)
         if model_root:
             realtime.set_model_root(str(model_root))
+        elif self._PLUGIN_MODELS.exists():
+            realtime.set_model_root(str(self._PLUGIN_MODELS.parent))  # realtime 拼 <root>/models/mediapipe/
         if model_dir:
             semantic.configure_model_dir(str(model_dir))
+        elif self._PLUGIN_MODELS.exists():
+            semantic.configure_model_dir(str(self._PLUGIN_MODELS / "minicpm-v46"))
         self._realtime = realtime
         self._semantic = semantic
         self.storage = storage
